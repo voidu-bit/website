@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>历史消消乐 · 第一单元闯关</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    background:radial-gradient(1200px 700px at 50% -10%,#3b3126 0%,#191512 60%,#0e0c0a 100%);
+    color:#f2ebdd;overflow:hidden;
+  }
+  .app{height:100vh;display:flex;flex-direction:column}
+
+  /* ===== 顶部状态栏 ===== */
+  .hud{
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;
+    padding:10px 20px;background:rgba(255,255,255,.035);
+    border-bottom:1px solid rgba(255,212,121,.15);flex:0 0 auto;
+  }
+  .lvl{font-size:16px;font-weight:800;color:#ffd479;letter-spacing:.5px}
+  .hud-mid{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .timer{font-size:26px;font-weight:900;color:#ffd479;font-variant-numeric:tabular-nums;line-height:1;transition:color .2s}
+  .timer.warn{color:#ff5b4a;animation:blink .55s infinite alternate}
+  @keyframes blink{from{opacity:1}to{opacity:.3}}
+  .bar{width:220px;height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+  .bar i{display:block;height:100%;width:100%;border-radius:99px;
+    background:linear-gradient(90deg,#ffd479,#f5a623);transition:width .95s linear,background .3s}
+  .bar.warn i{background:linear-gradient(90deg,#ff6b5e,#ff2d55)}
+  .hud-right{display:flex;justify-content:flex-end;gap:24px}
+  .stat{display:flex;flex-direction:column;align-items:flex-end;font-size:12px;color:#a89b86}
+  .stat b{font-size:20px;color:#fff;font-variant-numeric:tabular-nums}
+
+  /* ===== 棋盘 ===== */
+  .board{
+    flex:1 1 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
+    grid-auto-rows:minmax(0,1fr);gap:8px;padding:12px 18px 18px;
+    max-width:1560px;width:100%;margin:0 auto;overflow:auto;min-height:0;
+  }
+  .card{
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    padding:6px 8px;background:linear-gradient(175deg,#fdf8ee 0%,#eadfc8 100%);
+    color:#2f2417;border:2px solid #c9b48d;border-radius:11px;
+    font-size:15px;font-weight:700;line-height:1.24;cursor:pointer;user-select:none;
+    overflow:hidden;box-shadow:0 2px 0 rgba(0,0,0,.35);
+    transition:transform .12s ease,box-shadow .12s ease,border-color .12s,
+               background .12s,opacity .3s,visibility .3s;
+  }
+  .card.long{font-size:12.5px;font-weight:600}
+  .card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.45);border-color:#e0a93f}
+  .card.selected{
+    border-color:#e0a93f;background:linear-gradient(175deg,#fff6dd,#ffe6ac);
+    box-shadow:0 0 0 3px rgba(224,169,63,.45),0 6px 16px rgba(0,0,0,.4);transform:translateY(-2px);
+  }
+  .card.wrong{
+    border-color:#e0483a;background:linear-gradient(175deg,#ffe9e6,#ffc9c2);
+    animation:shake .35s;
+  }
+  @keyframes shake{
+    0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
+    40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}
+  }
+  .card.matched{opacity:0;visibility:hidden;transform:scale(.45);pointer-events:none}
+
+  /* ===== 弹窗 ===== */
+  .overlay{
+    position:fixed;inset:0;background:rgba(10,8,6,.85);backdrop-filter:blur(5px);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .overlay.hidden{display:none}
+  .panel{
+    width:min(780px,100%);max-height:88vh;overflow-y:auto;
+    background:linear-gradient(180deg,#2c241b,#1c1712);
+    border:1px solid rgba(255,212,121,.28);border-radius:18px;padding:26px 28px;
+    box-shadow:0 24px 70px rgba(0,0,0,.7);
+    animation:pop .28s ease;
+  }
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+  .panel::-webkit-scrollbar{width:8px}
+  .panel::-webkit-scrollbar-thumb{background:rgba(255,212,121,.25);border-radius:9px}
+
+  .ov-title{font-size:26px;font-weight:900;color:#ffd479;text-align:center;margin-bottom:6px}
+  .ov-sub{text-align:center;color:#a89b86;font-size:13px;margin-bottom:18px}
+  .ov-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .ov-stat{
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;padding:10px;text-align:center;
+  }
+  .ov-stat span{display:block;font-size:12px;color:#a89b86;margin-bottom:4px}
+  .ov-stat b{font-size:22px;color:#ffd479;font-variant-numeric:tabular-nums}
+  .ov-bonus{
+    text-align:center;color:#7ee08a;font-weight:800;font-size:14px;margin-bottom:16px;
+  }
+  .ov-h3{font-size:15px;color:#ffd479;margin:16px 0 10px;padding-left:10px;
+    border-left:3px solid #ffd479;}
+  .ans-list{margin-bottom:18px}
+  .ans-row{
+    display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:9px;
+    margin-bottom:6px;font-size:13.5px;background:rgba(255,255,255,.03);
+  }
+  .ans-row.ok{background:rgba(76,175,80,.13);border-left:3px solid #4caf50}
+  .ans-row.miss{background:rgba(255,99,99,.10);border-left:3px solid #ff6363}
+  .ans-flag{width:16px;font-weight:900;flex:0 0 auto}
+  .ans-row.ok .ans-flag{color:#6ee07a}
+  .ans-row.miss .ans-flag{color:#ff6363}
+  .ans-a{flex:0 0 34%;font-weight:800;color:#ffd479}
+  .ans-arrow{color:#7a6b55;flex:0 0 auto}
+  .ans-b{flex:1;color:#e8dfd0}
+
+  .ov-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .btn{
+    background:linear-gradient(180deg,#f2c76c,#d99a2b);color:#2a1f10;border:none;
+    border-radius:11px;padding:12px 30px;font-size:16px;font-weight:900;cursor:pointer;
+    transition:filter .15s,transform .1s;font-family:inherit;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,212,121,.45);color:#ffd479}
+
+  /* ===== 开始页 ===== */
+  .start-panel h1{
+    font-size:34px;text-align:center;color:#ffd479;margin-bottom:8px;letter-spacing:2px;
+  }
+  .start-panel .sub{text-align:center;color:#a89b86;font-size:13px;margin-bottom:22px}
+  .rules{list-style:none;margin:0 0 24px;padding:0}
+  .rules li{
+    padding:9px 14px;margin-bottom:7px;border-radius:9px;font-size:14px;color:#ded4c2;
+    background:rgba(255,255,255,.04);border-left:3px solid rgba(255,212,121,.5);
+  }
+  .rules li b{color:#ffd479}
+  .start-panel .btn{display:block;margin:0 auto}
+
+  @media (max-width:900px){
+    .board{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .card{font-size:12px}
+    .card.long{font-size:11px}
+    .ov-stats{grid-template-columns:repeat(2,1fr)}
+    .ans-a{flex:0 0 40%}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="hud">
+    <div class="hud-left"><div class="lvl" id="levelName">准备开始</div></div>
+    <div class="hud-mid">
+      <div class="timer" id="timer">60</div>
+      <div class="bar" id="barWrap"><i id="barFill"></i></div>
+    </div>
+    <div class="hud-right">
+      <div class="stat"><span>总得分</span><b id="score">0</b></div>
+      <div class="stat"><span>已消除</span><b id="progress">0/15</b></div>
+    </div>
+  </header>
+  <main class="board" id="board"></main>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<script>
+/* =========================================================
+   关卡数据：每关 15 组配对 → 30 张卡片
+   ========================================================= */
+const LEVELS = [
+  {
+    name: "第 1 关 · 新石器时代与夏商周",
+    pairs: [
+      ["仰韶文化", "彩绘陶器，主要种植粟"],
+      ["大汶口文化", "黄河下游"],
+      ["河姆渡文化", "种植水稻，养蚕丝技术"],
+      ["龙山文化", "黑陶（蛋壳陶）"],
+      ["红山文化", "辽河上游，精美玉器"],
+      ["良渚文化", "长江下游"],
+      ["陶寺遗址", "都城规模大，有宫殿、天文建筑和各种礼器"],
+      ["启继位", "世袭制代替禅让制的标志"],
+      ["二里头遗址", "很可能是夏朝的代表遗址"],
+      ["内外服制", "商朝的地方管理制度"],
+      ["宗法制", "实行嫡长子继承制"],
+      ["分封制", "封建亲戚，以藩屏周"],
+      ["何尊", "“中国”一词最早的实物见证"],
+      ["井田制", "商周土地经营的基本方式"],
+      ["甲骨文", "研究商朝历史的实物史料"]
+    ]
+  },
+  {
+    name: "第 2 关 · 诸侯纷争与变法运动",
+    pairs: [
+      ["春秋与战国", "东周分为的两个时期"],
+      ["铁犁牛耕", "春秋战国时期农业发展的关键"],
+      ["都江堰", "四川成都平原的水利工程"],
+      ["郑国渠", "陕西关中的水利工程"],
+      ["芍陂", "安徽的水利工程"],
+      ["商鞅变法", "战国持续时间最长、涉及面最广、最彻底的变法"],
+      ["孔子", "核心思想是“仁”，主张“为政以德”"],
+      ["有教无类", "孔子在教育方面的主张"],
+      ["老子", "将天地万物本原归结为抽象的“道”"],
+      ["孟子", "人性善，主张“仁政”"],
+      ["荀子", "人性恶，主张隆礼重法"],
+      ["庄子", "崇尚逍遥自由"],
+      ["邹衍", "五行相生相胜"],
+      ["墨子", "主张“兼爱”“非攻”“尚贤”"],
+      ["韩非子", "以法为工具管理国家，体现中央集权思想"]
+    ]
+  },
+  {
+    name: "第 3 关 · 秦统一多民族封建国家的建立",
+    pairs: [
+      ["皇帝制度", "秦朝确立，皇权至高无上"],
+      ["三公九卿制", "秦朝的中央官制"],
+      ["郡县制", "秦朝推广到全国的地方行政制度"],
+      ["郡县长官由中央任免和考核", "与分封制相比，郡县制的特点"],
+      ["亭", "秦朝负责地方治安的机构"],
+      ["统一货币、度量衡", "秦朝巩固统一的经济措施"],
+      ["统一文字", "秦朝巩固统一的文化措施"],
+      ["驰道、直道", "秦朝修建的交通道路"],
+      ["焚书坑儒", "秦朝加强思想控制、摧残文化"],
+      ["陈胜、吴广", "揭开反秦起义的序幕"],
+      ["商鞅变法", "为秦统一中国奠定基础"],
+      ["北击匈奴，修长城", "秦朝北方的军事防御措施"],
+      ["东至辽东，西至临洮", "秦朝长城的起止范围"],
+      ["幅员辽阔的统一国家", "秦统一的意义之一"],
+      ["迁六国贵族豪强到关中", "秦朝削弱地方势力的社会治理措施"]
+    ]
+  },
+  {
+    name: "第 4 关 · 西汉与东汉——统一多民族封建国家的巩固",
+    pairs: [
+      ["黄老无为思想", "汉初尊奉的指导思想"],
+      ["与民休息", "汉初推行的政策"],
+      ["郡县与分封并行制", "汉初在地方实行的制度"],
+      ["推恩令", "削弱诸侯势力"],
+      ["中朝", "加强皇权，削弱相权"],
+      ["察举制", "汉武帝确立的选官制度"],
+      ["刺史", "监察郡级官员和豪强势力"],
+      ["尊崇儒术", "儒学成为封建社会主流意识形态"],
+      ["盐铁官营", "政府垄断盐铁的生产和销售"],
+      ["均输平准", "国家插手经营商业，增加收入、平抑物价"],
+      ["河西四郡", "武威、张掖、酒泉、敦煌"],
+      ["张骞出使西域", "促进西域与中原联系，形成“丝绸之路”"],
+      ["西域都护府", "前 60 年设于乌垒城"],
+      ["《史记》", "首创纪传体通史体裁"],
+      ["蔡伦", "改进造纸术"]
+    ]
+  }
+];
+
+const TOTAL_PAIRS  = 15;
+const LEVEL_TIME   = 60;
+const SCORE_HIT    = 10;
+const SCORE_MISS   = 3;
+
+/* ================== 全局状态 ================== */
+const board      = document.getElementById('board');
+const overlay    = document.getElementById('overlay');
+const levelNameEl= document.getElementById('levelName');
+const timerEl    = document.getElementById('timer');
+const barWrap    = document.getElementById('barWrap');
+const barFill    = document.getElementById('barFill');
+const scoreEl    = document.getElementById('score');
+const progressEl = document.getElementById('progress');
+
+const S = {
+  level: 0,
+  score: 0,
+  timeLeft: LEVEL_TIME,
+  timerId: null,
+  selected: null,
+  lock: false,
+  running: false,
+  ended: false,
+  matched: new Set(),
+  wrongCount: 0,
+  levelStartScore: 0
+};
+
+/* ================== 工具 ================== */
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function updateHUD(){
+  scoreEl.textContent = S.score;
+  progressEl.textContent = S.matched.size + '/' + TOTAL_PAIRS;
+}
+function updateTimer(){
+  timerEl.textContent = S.timeLeft;
+  barFill.style.width = (S.timeLeft / LEVEL_TIME * 100) + '%';
+  const warn = S.timeLeft <= 10;
+  timerEl.classList.toggle('warn', warn);
+  barWrap.classList.toggle('warn', warn);
+}
+
+/* ================== 开始界面 ================== */
+function showStart(){
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = `
+    <div class="panel start-panel">
+      <h1>历史消消乐</h1>
+      <p class="sub">第一单元 · 从中华文明起源到两汉统一多民族封建国家</p>
+      <ul class="rules">
+        <li>共 <b>4 关</b>，每关 <b>30 张卡片（15 组配对）</b>，难度逐关提升</li>
+        <li>每关限时 <b>60 秒</b>，倒计时结束自动结算并展示答案</li>
+        <li>点击两张相互关联的卡片即可消除：配对成功 <b>+10 分</b></li>
+        <li>配对错误 <b>-3 分</b>；提前清空全部卡片，剩余每秒 <b>+2 分</b></li>
+      </ul>
+      <button class="btn" id="startBtn">开始闯关</button>
+    </div>`;
+  document.getElementById('startBtn').onclick = () => {
+    S.score = 0;
+    initLevel(0);
+  };
+}
+
+/* ================== 初始化一关 ================== */
+function initLevel(idx){
+  S.level = idx;
+  S.matched = new Set();
+  S.selected = null;
+  S.lock = false;
+  S.ended = false;
+  S.running = true;
+  S.wrongCount = 0;
+  S.timeLeft = LEVEL_TIME;
+  S.levelStartScore = S.score;
+
+  const lv = LEVELS[idx];
+  levelNameEl.textContent = lv.name;
+
+  // 生成 30 张卡
+  const cards = [];
+  lv.pairs.forEach((p, i) => {
+    cards.push({ id: String(i), text: p[0] });
+    cards.push({ id: String(i), text: p[1] });
+  });
+  shuffle(cards);
+
+  board.innerHTML = '';
+  cards.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'card' + (c.text.length > 12 ? ' long' : '');
+    el.dataset.pair = c.id;
+    el.textContent = c.text;
+    el.addEventListener('click', () => onCardClick(el));
+    board.appendChild(el);
+  });
+
+  updateHUD();
+  updateTimer();
+  overlay.classList.add('hidden');
+
+  clearInterval(S.timerId);
+  S.timerId = setInterval(tick, 1000);
+}
+
+/* ================== 计时 ================== */
+function tick(){
+  if(!S.running) return;
+  S.timeLeft--;
+  if(S.timeLeft <= 0){
+    S.timeLeft = 0;
+    updateTimer();
+    endLevel('timeout');
+    return;
+  }
+  updateTimer();
+}
+
+/* ================== 点击卡片 ================== */
+function onCardClick(el){
+  if(!S.running || S.lock) return;
+  if(el.classList.contains('matched')) return;
+
+  // 再次点击已选中卡片 → 取消
+  if(el === S.selected){
+    el.classList.remove('selected');
+    S.selected = null;
+    return;
+  }
+
+  // 选第一张
+  if(!S.selected){
+    S.selected = el;
+    el.classList.add('selected');
+    return;
+  }
+
+  // 选第二张
+  const first = S.selected;
+  if(first.dataset.pair === el.dataset.pair){
+    /* ---- 配对成功 ---- */
+    first.classList.remove('selected');
+    first.classList.add('matched');
+    el.classList.add('matched');
+    S.selected = null;
+    S.score += SCORE_HIT;
+    S.matched.add(first.dataset.pair);
+    updateHUD();
+
+    if(S.matched.size === TOTAL_PAIRS){
+      S.running = false;
+      clearInterval(S.timerId);
+      setTimeout(() => endLevel('complete'), 400);
+    }
+  } else {
+    /* ---- 配对失败 ---- */
+    S.lock = true;
+    S.wrongCount++;
+    S.score = Math.max(0, S.score - SCORE_MISS);
+    updateHUD();
+    first.classList.add('wrong');
+    el.classList.add('wrong');
+    setTimeout(() => {
+      first.classList.remove('wrong','selected');
+      el.classList.remove('wrong');
+      S.selected = null;
+      S.lock = false;
+    }, 450);
+  }
+}
+
+/* ================== 结算 ================== */
+function endLevel(reason){
+  if(S.ended) return;
+  S.ended = true;
+  S.running = false;
+  clearInterval(S.timerId);
+
+  let bonus = 0;
+  if(reason === 'complete'){
+    bonus = S.timeLeft * 2;
+    S.score += bonus;
+  }
+  updateHUD();
+  showResult(reason, bonus);
+}
+
+function showResult(reason, bonus){
+  const lv   = LEVELS[S.level];
+  const isLast = S.level === LEVELS.length - 1;
+  const levelScore = S.score - S.levelStartScore;
+  const title = reason === 'complete' ? '🎉 全部消除，闯关成功！' : '⏰ 时间到！';
+
+  let html = `
+    <div class="panel">
+      <div class="ov-title">${title}</div>
+      <div class="ov-sub">${lv.name}</div>
+      <div class="ov-stats">
+        <div class="ov-stat"><span>本关得分</span><b>${levelScore}</b></div>
+        <div class="ov-stat"><span>已消除</span><b>${S.matched.size}/${TOTAL_PAIRS}</b></div>
+        <div class="ov-stat"><span>配对失误</span><b>${S.wrongCount}</b></div>
+        <div class="ov-stat"><span>总得分</span><b>${S.score}</b></div>
+      </div>`;
+
+  if(bonus > 0){
+    html += `<div class="ov-bonus">⏱ 剩余 ${S.timeLeft} 秒 · 时间奖励 +${bonus} 分</div>`;
+  }
+
+  html += `<div class="ov-h3">正确答案</div><div class="ans-list">`;
+  lv.pairs.forEach((p, i) => {
+    const ok = S.matched.has(String(i));
+    html += `<div class="ans-row ${ok ? 'ok' : 'miss'}">
+        <span class="ans-flag">${ok ? '✓' : '✗'}</span>
+        <span class="ans-a">${p[0]}</span>
+        <span class="ans-arrow">→</span>
+        <span class="ans-b">${p[1]}</span>
+      </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="ov-actions">
+      <button class="btn" id="ovNext">${isLast ? '查看总成绩' : '进入下一关'}</button>
+      <button class="btn ghost" id="ovRetry">重玩本关</button>
+    </div></div>`;
+
+  overlay.classList.remove('hidden');
+  overlay.innerHTML = html;
+
+  document.getElementById('ovNext').onclick = () => {
+    if(isLast) showFinal();
+    else initLevel(S.level + 1);
+  };
+  document.getElementById('ovRetry').onclick = () => {
+    S.score = S.levelStartScore;   // 撤销本关得分
+    initLevel(S.level);
+  };
+}
+
+function showFinal(){
+  let grade = '继续加油！';
+  if(S.score >= 500) grade = '🏆 史学大家！';
+  else if(S.score >= 400) grade = '🥇 博古通今！';
+  else if(S.score >= 300) grade = '🥈 基础扎实！';
+  else if(S.score >= 200) grade = '🥉 仍需巩固～';
+
+  overlay.innerHTML = `
+    <div class="panel">
+      <div class="ov-title">🎊 全部四关完成！</div>
+      <div class="ov-sub">历史消消乐 · 第一单元</div>
+      <div class="ov-stats" style="grid-template-columns:1fr 1fr">
+        <div class="ov-stat"><span>最终总得分</span><b>${S.score}</b></div>
+        <div class="ov-stat"><span>评级</span><b style="font-size:18px">${grade}</b></div>
+      </div>
+      <div class="ov-actions">
+        <button class="btn" id="againBtn">再玩一次</button>
+      </div>
+    </div>`;
+
+  document.getElementById('againBtn').onclick = () => {
+    S.score = 0;
+    showStart();
+  };
+}
+
+/* ================== 启动 ================== */
+showStart();
+</script>
+</body>
+</html>
